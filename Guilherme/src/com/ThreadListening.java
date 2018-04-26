@@ -20,6 +20,7 @@ class ThreadListening extends Thread {
     private MulticastSocket s;
     private LinkedList<String> listaMembros;
     private javax.swing.JTextArea msgRecebida;
+
     public ThreadListening(MulticastSocket s, javax.swing.JTextArea msgRecebida, LinkedList<String> listaMembros) {
         this.s = s;
         this.msgRecebida = msgRecebida;
@@ -34,12 +35,12 @@ class ThreadListening extends Thread {
                 byte[] buffer = new byte[1024];
                 DatagramPacket msgIn = new DatagramPacket(buffer, buffer.length);
                 s.receive(msgIn);
-                
-                if(buffer.toString().startsWith("JOIN\\[")){
-                    System.out.println(buffer.toString());
+                System.out.println("S.receive = " + s.toString());
+                System.out.println("BUffer: " + buffer.toString());
+                if (buffer.toString().startsWith("JOIN\\[")) {
+                    System.out.println("BUfferIF: " + buffer.toString());
                 }
-                System.out.println(buffer);
-                this.msgRecebida.setText(this.msgRecebida.getText()+buffer.toString()+"\n");
+                //this.msgRecebida.setText(this.msgRecebida.getText() + buffer.toString() + "\n");
 
             }
         } catch (EOFException eofe) {
