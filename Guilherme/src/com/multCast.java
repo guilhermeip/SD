@@ -15,6 +15,10 @@ public class multCast {
 
     public static void main(String[] args) {
         String name = JOptionPane.showInputDialog(null, "Digite seu nome: ", "", JOptionPane.PLAIN_MESSAGE);
+        if(name.length() <= 0){
+            JOptionPane.showMessageDialog(null, "Nome não pode ser vazio!", "", JOptionPane.ERROR_MESSAGE);
+            System.exit(0);
+        }
         Chat chat = new Chat(name);
         chat.setVisible(true);
     }

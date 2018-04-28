@@ -5,36 +5,85 @@
  */
 package com;
 
+import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.LinkedList;
-import javax.swing.ComboBoxModel;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.JTextArea;
 
 /**
  *
  * @author guilherme
  */
 public class Chat extends javax.swing.JFrame {
-    private LinkedList<String> listaMembros;
+
+    private LinkedList<Usuario> listaMembros;
+    private InetAddress group;
+    private String name;
+    private MulticastSocket s;
+    private DatagramSocket ds;
+    private InetAddress myIp;
+
+    public void removeUsuario(String apelido) {
+        for (Usuario u : listaMembros) {
+            if (apelido.equals(u.getNome())) {
+                listaMembros.remove(u);
+                return;
+            }
+        }
+        for (int i = 0; i < comboBox.getItemCount(); i++) {
+            if (comboBox.getItemAt(i).toString().equals(apelido)) {
+                comboBox.removeItemAt(i);
+                return;
+            }
+        }
+    }
+
+    public void adicionarUsuario(String apelido, InetAddress ip) {
+        Usuario u = new Usuario(apelido, ip);
+        listaMembros.add(u);
+        comboBox.addItem(apelido);
+    }
+
+    public String retornaApelido(InetAddress ip) {
+        System.out.println(ip.getHostAddress());
+        for (Usuario u : listaMembros) {
+            if (u.getEndereco().getHostAddress().equals(ip.getHostAddress())) {
+                return u.getNome();
+            }
+        }
+        return null;
+    }
+
     public Chat(String name) {
         initComponents();
-        String nickName = name;
-        int porta = 6799;
-        String ip = "225.1.2.3";
+        this.name = name;
         this.listaMembros = new LinkedList<>();
+
         try {
-            InetAddress group = InetAddress.getByName(ip);
-            MulticastSocket s = new MulticastSocket(porta);
+            this.group = InetAddress.getByName("225.1.2.3");
+            this.s = new MulticastSocket(6789);
+            this.ds = new DatagramSocket(6799);
+
             s.joinGroup(group);
-            String firstMsg = "JOIN["+name+"]";
-            DatagramPacket dp = new DatagramPacket(firstMsg.getBytes(), firstMsg.length(), group, porta);
+            String firstMsg = "JOIN [" + name + "]";
+            DatagramPacket dp = new DatagramPacket(firstMsg.getBytes(), firstMsg.length(), group, 6789);
             s.send(dp);
-            
-            ThreadListening listening = new ThreadListening(s, textAreaMultCast, this.listaMembros);
-        }catch(IOException ex){
-            
+
+            ThreadListeningChat listeningchat = new ThreadListeningChat(this, recebidaChat);
+            ThreadListeningMult listening = new ThreadListeningMult(this, recebidaMultCast);
+            listening.start();
+            listeningchat.start();
+        } catch (IOException ex) {
+            System.out.println("IOE: " + ex.getMessage());
         }
     }
 
@@ -50,34 +99,38 @@ public class Chat extends javax.swing.JFrame {
         jTabbedPane2 = new javax.swing.JTabbedPane();
         jPanel1 = new javax.swing.JPanel();
         jScrollPane1 = new javax.swing.JScrollPane();
-        textAreaChat = new javax.swing.JTextArea();
+        recebidaChat = new javax.swing.JTextArea();
         jScrollPane2 = new javax.swing.JScrollPane();
-        jTextArea2 = new javax.swing.JTextArea();
+        enviadaChat = new javax.swing.JTextArea();
         comboBox = new javax.swing.JComboBox<>();
         buttonEnviarChat = new javax.swing.JButton();
         jPanel2 = new javax.swing.JPanel();
         jScrollPane3 = new javax.swing.JScrollPane();
-        textAreaMultCast = new javax.swing.JTextArea();
+        recebidaMultCast = new javax.swing.JTextArea();
         jScrollPane4 = new javax.swing.JScrollPane();
-        jTextArea4 = new javax.swing.JTextArea();
+        enviadaMultCast = new javax.swing.JTextArea();
         buttonEnviarMultCast = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
-
-        textAreaChat.setEditable(false);
-        textAreaChat.setColumns(20);
-        textAreaChat.setRows(5);
-        jScrollPane1.setViewportView(textAreaChat);
-
-        jTextArea2.setColumns(20);
-        jTextArea2.setRows(5);
-        jScrollPane2.setViewportView(jTextArea2);
-
-        comboBox.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                comboBoxActionPerformed(evt);
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowClosed(java.awt.event.WindowEvent evt) {
+                formWindowClosed(evt);
             }
         });
+
+        recebidaChat.setEditable(false);
+        recebidaChat.setColumns(20);
+        recebidaChat.setRows(5);
+        jScrollPane1.setViewportView(recebidaChat);
+
+        enviadaChat.setColumns(20);
+        enviadaChat.setRows(5);
+        enviadaChat.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                enviadaChatKeyPressed(evt);
+            }
+        });
+        jScrollPane2.setViewportView(enviadaChat);
 
         buttonEnviarChat.setText("Enviar");
         buttonEnviarChat.addActionListener(new java.awt.event.ActionListener() {
@@ -110,23 +163,33 @@ public class Chat extends javax.swing.JFrame {
                     .addComponent(comboBox, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 93, Short.MAX_VALUE)
+                    .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 81, Short.MAX_VALUE)
                     .addComponent(buttonEnviarChat, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
         );
 
         jTabbedPane2.addTab("Chat", jPanel1);
 
-        textAreaMultCast.setEditable(false);
-        textAreaMultCast.setColumns(20);
-        textAreaMultCast.setRows(5);
-        jScrollPane3.setViewportView(textAreaMultCast);
+        recebidaMultCast.setEditable(false);
+        recebidaMultCast.setColumns(20);
+        recebidaMultCast.setRows(5);
+        jScrollPane3.setViewportView(recebidaMultCast);
 
-        jTextArea4.setColumns(20);
-        jTextArea4.setRows(5);
-        jScrollPane4.setViewportView(jTextArea4);
+        enviadaMultCast.setColumns(20);
+        enviadaMultCast.setRows(5);
+        enviadaMultCast.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                enviadaMultCastKeyPressed(evt);
+            }
+        });
+        jScrollPane4.setViewportView(enviadaMultCast);
 
         buttonEnviarMultCast.setText("Enviar");
+        buttonEnviarMultCast.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                buttonEnviarMultCastActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
@@ -147,7 +210,7 @@ public class Chat extends javax.swing.JFrame {
                 .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 260, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jScrollPane4, javax.swing.GroupLayout.DEFAULT_SIZE, 81, Short.MAX_VALUE)
+                    .addComponent(jScrollPane4, javax.swing.GroupLayout.DEFAULT_SIZE, 69, Short.MAX_VALUE)
                     .addComponent(buttonEnviarMultCast, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
         );
@@ -162,27 +225,90 @@ public class Chat extends javax.swing.JFrame {
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jTabbedPane2, javax.swing.GroupLayout.Alignment.TRAILING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                .addGap(0, 0, 0)
+                .addComponent(jTabbedPane2))
         );
 
         pack();
         setLocationRelativeTo(null);
     }// </editor-fold>//GEN-END:initComponents
+    private void enviarMSG(String msg, boolean isMultcast) {
+        InetAddress ipDestino = null;
+        int port = 0;
+        try {
+            if (isMultcast) {
+                msg = "MSG [" + this.name + "] " + msg;
+                ipDestino = InetAddress.getByName("225.1.2.3");
+                port = 6789;
+            } else {
+                String apelidoDest = comboBox.getSelectedItem().toString();
+                ipDestino = getIpdestino(apelidoDest);
+                System.out.println("IPDEST" + ipDestino);
+                port = 6799;
+                if (msg.startsWith("LISTFILES")) {
+                    msg += " [" + apelidoDest + "]";
+                } else if (msg.startsWith("DOWNFILE ")) {
+                    msg = msg.replaceAll(" ", " [" + apelidoDest + "] ");
+                } else {
+                    recebidaChat.setText(recebidaChat.getText() + "[" + this.name + "] " + msg + "\n");
+                    msg = "MSGIDV FROM [" + this.name + "] TO [" + apelidoDest + "] " + msg;
+                }
+                System.out.println("FUNC_ENVIAR_MSG: " + msg);
 
+            }
+            DatagramPacket dp = new DatagramPacket(msg.getBytes(), msg.length(), ipDestino, port);
+            if (isMultcast) {
+                this.s.send(dp);
+                enviadaMultCast.setText("");
+            } else {
+                this.ds.send(dp);
+                enviadaChat.setText("");
+            }
+        } catch (IOException ex) {
+            System.out.println("IOE: " + ex.getMessage());
+        }
+
+    }
     private void buttonEnviarChatActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonEnviarChatActionPerformed
-        System.out.println("FA");
+        enviarMSG(enviadaChat.getText(), false);
     }//GEN-LAST:event_buttonEnviarChatActionPerformed
 
-    private void comboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_comboBoxActionPerformed
-        System.out.println("FA");
-    }//GEN-LAST:event_comboBoxActionPerformed
+    private void buttonEnviarMultCastActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonEnviarMultCastActionPerformed
+        enviarMSG(enviadaMultCast.getText(), true);
+    }//GEN-LAST:event_buttonEnviarMultCastActionPerformed
 
-    
+    private void enviadaMultCastKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_enviadaMultCastKeyPressed
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            enviarMSG(enviadaMultCast.getText(), true);
+        }
+    }//GEN-LAST:event_enviadaMultCastKeyPressed
+
+    private void enviadaChatKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_enviadaChatKeyPressed
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            enviarMSG(enviadaChat.getText(), false);
+        }
+    }//GEN-LAST:event_enviadaChatKeyPressed
+
+    private void formWindowClosed(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosed
+        String msg = "LEAVE [" + this.name + "]";
+        try {
+            DatagramPacket dp = new DatagramPacket(msg.getBytes(), msg.length(), InetAddress.getByName("225.1.2.3"), 6789);
+            s.send(dp);
+        } catch (UnknownHostException ex) {
+            Logger.getLogger(Chat.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IOException ex) {
+            Logger.getLogger(Chat.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }//GEN-LAST:event_formWindowClosed
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton buttonEnviarChat;
     private javax.swing.JButton buttonEnviarMultCast;
     private javax.swing.JComboBox<String> comboBox;
+    private javax.swing.JTextArea enviadaChat;
+    private javax.swing.JTextArea enviadaMultCast;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JScrollPane jScrollPane1;
@@ -190,9 +316,73 @@ public class Chat extends javax.swing.JFrame {
     private javax.swing.JScrollPane jScrollPane3;
     private javax.swing.JScrollPane jScrollPane4;
     private javax.swing.JTabbedPane jTabbedPane2;
-    private javax.swing.JTextArea jTextArea2;
-    private javax.swing.JTextArea jTextArea4;
-    private javax.swing.JTextArea textAreaChat;
-    private javax.swing.JTextArea textAreaMultCast;
+    private javax.swing.JTextArea recebidaChat;
+    private javax.swing.JTextArea recebidaMultCast;
     // End of variables declaration//GEN-END:variables
+
+    public InetAddress getIpdestino(String apelidoDest) {
+        for (Usuario u : listaMembros) {
+            if (apelidoDest.equals(u.getNome())) {
+                return u.getEndereco();
+            }
+        }
+        return null;
+    }
+
+    public InetAddress getMyIp() {
+        return myIp;
+    }
+
+    public void setMyIp(InetAddress myIp) {
+        this.myIp = myIp;
+    }
+
+    public LinkedList<Usuario> getListaMembros() {
+        return listaMembros;
+    }
+
+    public void setListaMembros(LinkedList<Usuario> listaMembros) {
+        this.listaMembros = listaMembros;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public MulticastSocket getS() {
+        return s;
+    }
+
+    public void setS(MulticastSocket s) {
+        this.s = s;
+    }
+
+    public DatagramSocket getDs() {
+        return ds;
+    }
+
+    public void setDs(DatagramSocket ds) {
+        this.ds = ds;
+    }
+
+    public JTextArea getRecebidaChat() {
+        return recebidaChat;
+    }
+
+    public void setRecebidaChat(JTextArea recebidaChat) {
+        this.recebidaChat = recebidaChat;
+    }
+
+    public JTextArea getRecebidaMultCast() {
+        return recebidaMultCast;
+    }
+
+    public void setRecebidaMultCast(JTextArea recebidaMultCast) {
+        this.recebidaMultCast = recebidaMultCast;
+    }
+
 }
