@@ -79,7 +79,8 @@ public class ThreadListeningChat extends Thread {
 
                     ServerSocket server = new ServerSocket(7777);
                     Socket clientSocket = server.accept();
-
+                    
+                    System.out.println("Cliente conectado ip: "+clientSocket.getInetAddress().getHostAddress());
                     DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
                     out.write(mybytearray, 0, mybytearray.length);
                     out.flush();
@@ -96,12 +97,13 @@ public class ThreadListeningChat extends Thread {
                 } else if (msg.startsWith("DOWNINFO ")) {
                     String argumentosDownInfo = msg.replaceAll("DOWNINFO \\[", "").replace("]", "").replace(" ", "");
                     String[] vArgDownInfo = argumentosDownInfo.split(",");
-
+                    vArgDownInfo[2] = vArgDownInfo[2].replace("/", "");
+                    System.out.println(vArgDownInfo[2]);
                     Socket clientSocket = new Socket(InetAddress.getByName(vArgDownInfo[2]), Integer.valueOf(vArgDownInfo[3]));
                     DataInputStream in = new DataInputStream(clientSocket.getInputStream());
 
                     int tam = Integer.valueOf(vArgDownInfo[1]);
-                    String nomeArquivo = vArgDownInfo[0];
+                    String nomeArquivo = this.path+vArgDownInfo[0];
 
                     byte[] mybytearray = new byte[tam];
                     int bytesRead = in.read(mybytearray, 0, tam);
