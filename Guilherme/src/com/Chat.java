@@ -132,6 +132,12 @@ public class Chat extends javax.swing.JFrame {
         });
         jScrollPane2.setViewportView(enviadaChat);
 
+        comboBox.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                comboBoxActionPerformed(evt);
+            }
+        });
+
         buttonEnviarChat.setText("Enviar");
         buttonEnviarChat.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -301,6 +307,10 @@ public class Chat extends javax.swing.JFrame {
             Logger.getLogger(Chat.class.getName()).log(Level.SEVERE, null, ex);
         }
     }//GEN-LAST:event_formWindowClosed
+
+    private void comboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_comboBoxActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_comboBoxActionPerformed
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

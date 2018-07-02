@@ -68,15 +68,15 @@ public class ThreadListeningChat extends Thread {
                     chat.getDs().send(send);
                 } else if (msg.startsWith("DOWNFILE ")) {
                     String nomeArquivo = msg.replaceAll("DOWNFILE \\[.*\\] ", "");
-
+                    System.out.print("NOMEARQUIVO: "+nomeArquivo);
                     Path caminho = Paths.get(this.path + nomeArquivo);
                     byte[] mybytearray = Files.readAllBytes(caminho);
                     String tam = String.valueOf(mybytearray.length);
-
+                    System.out.print("TAM : "+ tam);
                     String udpSend = "DOWNINFO [" + nomeArquivo + ", " + tam + ", " + chat.getMyIp() + ", " + "7777]";
                     DatagramPacket dp = new DatagramPacket(udpSend.getBytes(), udpSend.length(), msgIn.getAddress(), 6799);
                     chat.getDs().send(dp);
-
+                    System.out.println("Aaa"+udpSend);
                     ServerSocket server = new ServerSocket(7777);
                     Socket clientSocket = server.accept();
                     
@@ -108,7 +108,7 @@ public class ThreadListeningChat extends Thread {
                     byte[] mybytearray = new byte[tam];
                     int bytesRead = in.read(mybytearray, 0, tam);
                     int current = bytesRead;
-
+                    System.out.println("DOWNINFO: "+nomeArquivo);
                     do {
                         bytesRead = in.read(mybytearray, current, (mybytearray.length - current));
                         if (bytesRead >= 0) {
