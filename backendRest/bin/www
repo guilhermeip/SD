@@ -1,0 +1,133 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+var app = require('../app');
+var debug = require('debug')('backend:server');
+var http = require('http');
+const models = require('../models');
+const sequelize = models.sequelize;
+const Agenda = models.Agenda
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || '3003');
+app.set('port', port);
+
+/**
+ * Create HTTP server.
+ */
+
+var server = http.createServer(app);
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+sequelize.sync({ force: false })
+	.then(() => {
+		console.log('Banco criado com sucesso');
+		server.listen(port);
+		server.on('error', onError);
+		server.on('listening', onListening);
+		console.log('Server ouvindo a porta', port);
+	}).catch(ex => {
+		console.error('Não foi possível criar o banco de dados', ex);
+	});
+
+
+/**
+ *Criando base de dados para teste 
+ */
+function init() {
+	Usuario.findOne({
+		where: {
+			usuario: 'admin'
+		}
+	}).then(usuario => {
+		if (usuario) {
+			return;
+		}
+		Agenda.create({
+			nome: 'Teste',
+			cnpj: '07170938000107',
+			telefoneFixo: '1632741583',
+			endereco: 'Rua Pitanga, 121',
+			razaoSocial: 'Alguma coisa',
+			email: 'teste@gmail.com',
+			telefoneCelular: '16997883838',
+			creditos: 0
+		}).then(empresa => {
+			Usuario.create({
+				admin: true,
+				usuario: 'admin@gmail.com',
+				senha: twinbcrypt.encriptar('admin123', 10),
+				idEmpresa: empresa.idEmpresas,
+				nomeUsuario: 'testeAdmin',
+			});
+		});
+	});
+}
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+	var port = parseInt(val, 10);
+
+	if (isNaN(port)) {
+		// named pipe
+		return val;
+	}
+
+	if (port >= 0) {
+		// port number
+		return port;
+	}
+
+	return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+	if (error.syscall !== 'listen') {
+		throw error;
+	}
+
+	var bind = typeof port === 'string'
+		? 'Pipe ' + port
+		: 'Port ' + port;
+
+	// handle specific listen errors with friendly messages
+	switch (error.code) {
+	case 'EACCES':
+		console.error(bind + ' requires elevated privileges');
+		process.exit(1);
+		break;
+	case 'EADDRINUSE':
+		console.error(bind + ' is already in use');
+		process.exit(1);
+		break;
+	default:
+		throw error;
+	}
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+	var addr = server.address();
+	var bind = typeof addr === 'string'
+		? 'pipe ' + addr
+		: 'port ' + addr.port;
+	debug('Listening on ' + bind);
+}
